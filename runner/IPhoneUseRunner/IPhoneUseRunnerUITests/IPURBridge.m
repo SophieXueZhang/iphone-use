@@ -870,9 +870,39 @@ static unsigned long long IPURMainDisplayID(void)
 /// The interface orientation the touch paths being built are turned from (main thread; set per record).
 static long long IPURTouchOrientation = 1;
 
+// SpringBoard's application frame describes the actual display, even when the test runner
+// itself has legacy 320 x 480 UIScreen bounds. Normalize once to portrait; callers apply the
+// active interface orientation. Do not resolve foreground() here: its hit-test needs this size.
++ (CGSize)naturalScreenSize
+{
+  static CGSize cached = {0, 0};
+  static CFAbsoluteTime checkedAt = 0;
+  CFAbsoluteTime now = CFAbsoluteTimeGetCurrent();
+  if (cached.width > 0 && now - checkedAt < 1.0) return cached;
+  id element = [self systemApplicationElement];
+  if (element != nil) {
+    NSDictionary *tree = [self wdaTreeForAXElement:element maxDepth:1 maxNodes:1
+                             extensionCallLimit:0 rememberKey:nil];
+    NSDictionary *root = tree[IPURTreeRootKey];
+    NSDictionary *rect = root[@"rect"];
+    CGFloat width = [rect[@"width"] doubleValue];
+    CGFloat height = [rect[@"height"] doubleValue];
+    if ([tree[IPURTreeOkKey] boolValue] && isfinite(width) && isfinite(height)
+        && width > 0 && height > 0) {
+      cached = IPURNaturalDisplaySize(CGSizeMake(width, height), cached, CGSizeZero);
+      checkedAt = now;
+      return cached;
+    }
+  }
+  // Retain the last proven display size through a transient AX read failure.
+  if (cached.width > 0) return cached;
+  CGSize fallback = UIScreen.mainScreen.bounds.size;
+  return IPURNaturalDisplaySize(CGSizeZero, cached, fallback);
+}
+
 static CGPoint IPURTouchPoint(CGPoint point)
 {
-  return IPURPortraitPoint(point, IPURTouchOrientation, UIScreen.mainScreen.bounds.size);
+  return IPURPortraitPoint(point, IPURTouchOrientation, [IPURBridge naturalScreenSize]);
 }
 
 static NSString *IPURCreateGestureRecord(NSString *name, int pid, id *record)

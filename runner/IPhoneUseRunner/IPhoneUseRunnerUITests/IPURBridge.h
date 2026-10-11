@@ -90,6 +90,10 @@ FOUNDATION_EXPORT NSString *const IPURNodeAXElementKey;
 /// within 250 ms share one answer.
 + (NSInteger)interfaceOrientation;
 
+/// Physical display size in portrait screen points, from SpringBoard AX rather than the
+/// runner host's UIScreen bounds (which can incorrectly be 320 x 480).
++ (CGSize)naturalScreenSize;
+
 /// Process id of an XCUIApplication (private `processID`), or 0.
 + (int)pidForApplication:(XCUIApplication *)application;
 

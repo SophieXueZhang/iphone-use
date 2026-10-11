@@ -2,6 +2,7 @@
 // call the same code the runner runs).
 #pragma once
 #import <CoreGraphics/CoreGraphics.h>
+#import <math.h>
 
 /// Where a point in the interface's coordinates (UIInterfaceOrientation raw value
 /// `interfaceOrientation`, the space /window/size and the element rects use) sits in the screen's
@@ -24,4 +25,18 @@ static inline CGPoint IPURPortraitPoint(CGPoint point, long long interfaceOrient
     default:
       return point;
   }
+}
+
+/// Prefer the real SpringBoard AX display over legacy runner-host UIScreen bounds. Preserve a
+/// proven size if AX temporarily fails, and normalize either orientation into portrait points.
+static inline CGSize IPURNaturalDisplaySize(CGSize accessibility, CGSize previous, CGSize fallback)
+{
+  CGSize candidates[] = {accessibility, previous, fallback};
+  for (int index = 0; index < 3; index++) {
+    CGSize size = candidates[index];
+    if (isfinite(size.width) && isfinite(size.height) && size.width > 0 && size.height > 0) {
+      return CGSizeMake(MIN(size.width, size.height), MAX(size.width, size.height));
+    }
+  }
+  return CGSizeZero;
 }

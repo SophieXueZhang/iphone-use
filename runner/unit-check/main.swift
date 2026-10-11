@@ -636,5 +636,23 @@ do {
   check(small.check(replayOld, now: now) == .replay, "a forgotten nonce's timestamp is below the floor: still a replay")
 }
 
+// Regression: iPhone 14 Pro Max / iOS 26.6.2 reported 320x480 for the runner host even
+// while Instagram AX used 430x932. Its Like at (399, 478) was incorrectly rejected.
+do {
+  let legacy = CGSize(width: 320, height: 480)
+  let actual = CGSize(width: 430, height: 932)
+  let resolved = IPURNaturalDisplaySize(actual, .zero, legacy)
+  check(resolved == actual, "AX display size takes precedence over legacy runner host bounds")
+  check(TapBounds.onScreen(CGPoint(x: 399, y: 478), resolved), "Instagram Like lies inside the real display")
+  check(!TapBounds.onScreen(CGPoint(x: 399, y: 478), legacy), "legacy host size reproduces Like rejection")
+  check(IPURNaturalDisplaySize(CGSize(width: 932, height: 430), .zero, legacy) == actual,
+        "landscape AX display normalizes to portrait natural size")
+  check(IPURNaturalDisplaySize(.zero, actual, legacy) == actual, "temporary AX failure retains proven dimensions")
+  check(IPURNaturalDisplaySize(CGSize(width: CGFloat.nan, height: 932), actual, legacy) == actual,
+        "nonfinite AX dimensions cannot poison the cache")
+  check(IPURNaturalDisplaySize(.zero, .zero, legacy) == legacy, "host bounds remain a last-resort fallback")
+  check(IPURNaturalDisplaySize(.zero, .zero, .zero) == .zero, "no valid display returns zero")
+}
+
 print(failures == 0 ? "unit check: \(checks) checks passed" : "unit check: \(failures) of \(checks) checks FAILED")
 exit(failures == 0 ? 0 : 1)
